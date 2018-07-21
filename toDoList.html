@@ -1,0 +1,335 @@
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title></title>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="./css/index.css">
+    <script type="text/javascript" src="./lib/vue.js"></script>
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+
+</head>
+
+<body>
+    <section class="todoapp">
+        <header class="header">
+            <h1>任务清单</h1>
+            <input autofocus="autofocus" autocomplete="off" placeholder="想干啥?" @keyup.enter="addToDo" class="new-todo" v-model="inputToDo">
+        </header>
+        <section class="main">
+            <input v-model="checkAll" @change="checkAllToDo" type="checkbox" class="toggle-all">
+            <ul class="todo-list" v-cloak>
+                <li :class="['todo',{completed:item.complete,editing:item.isEdit}]" v-for="(item, index) in visibilityList">
+                    <div class="view">
+                        <input type="checkbox" @change="isCheckedAll" v-model="item.complete" class="toggle">
+                        <label @dblclick="editToDo(index)">{{item.name}}</label>
+                        <button class="destroy" v-on:click="deleteToDo(index)"></button>
+                    </div>
+                    <input type="text" v-model="cacheEdit" @keyup.enter="saveEdit(index)" class="edit" @keyup.Esc="cancleEdit(index)" @blur="saveEdit(index)">
+                </li>
+                <!-- <li class="todo ">
+                    <div class="view">
+                        <input type="checkbox" class="toggle">
+                        <label>21</label>
+                        <button class="destroy"></button>
+                    </div>
+                    <input type="text" class="edit">
+                </li>
+                <li class="todo completed">
+                    <div class="view">
+                        <input type="checkbox" class="toggle">
+                        <label>21</label>
+                        <button class="destroy"></button>
+                    </div>
+                    <input type="text" class="edit">
+                </li>
+                <li class="todo editing">
+                        <div class="view">
+                            <input type="checkbox" class="toggle">
+                            <label>21</label>
+                            <button class="destroy"></button>
+                        </div>
+                        <input type="text" class="edit">
+                </li> -->
+            </ul>
+        </section>
+        <footer class="footer">
+            <span class="todo-count" v-if="countAttr != 0">
+                <strong>{{countAttr}}</strong> 项 剩余
+            </span>
+            <ul class="filters">
+                <li>
+                    <a href="#/all" :class="{selected:visibility=='全部'}" @click="changeVisibility('全部')">全部</a>
+                </li>
+                <li>
+                    <a href="#/active" :class="{selected:visibility=='未完成'}" @click="changeVisibility('未完成')">未完成</a>
+                </li>
+                <li>
+                    <a href="#/completed" :class="{selected:visibility=='已完成'}" @click="changeVisibility('已完成')">已完成</a>
+                </li>
+            </ul>
+            <button class="clear-completed" v-on:click="clearList">
+                清空列表
+            </button>
+        </footer>
+    </section>
+    <footer class="info">
+        <p>双击进入编辑状态</p>
+        <p>鸣谢:
+            <a href="http://evanyou.me">Evan You</a>
+        </p>
+        <p>参考于
+            <a href="http://todomvc.com">TodoMVC</a>
+        </p>
+    </footer>
+
+    <script>
+        //数据长住
+        let toDoList = JSON.parse(window.localStorage.getItem("SZHM"));
+        if(toDoList){
+            //有值,不处理
+            console.log("y");
+        }else{
+            //没有值,赋值
+            console.log("n");
+            toDoList=[
+                {
+                    name: "起床",
+                    complete: true,
+                    isEdit: false
+                },
+                {
+                    name: "洗脸",
+                    complete: true,
+                    isEdit: false
+                },
+            ]
+        }
+        //注册页面关闭事件并保存数据
+        window.onbeforeunload = function () {
+            //保存数据
+            window.localStorage.setItem('szhm',JSON.stringify(toDoList));
+          }
+
+
+        // tell the embed parent frame the height of the content
+        if (window.parent && window.parent.parent) {
+            window.parent.parent.postMessage(["resultsFrame", {
+                height: document.body.getBoundingClientRect().height,
+                slug: "4dr2fLb7"
+            }], "*")
+        }
+    </script>
+    <!-- /*
+    分析
+        1.数据结构-完成
+            页面中toDo列表的保存的数据
+            [{name:'洗碗',complete:false}]
+        2.根据数据渲染页面li-完成
+            判断是否选中
+            checkbox进行双向绑定
+        3.点击新增-完成,v-on实例中有键盘按下事件,数组中插入数据可以用push方法
+            点击回车  获取输入的内容 增加到列表中 清空输入框 
+            输入框为空 点击回车没效果
+        4.点击删除对应的待办事项-完成,绑定点击事件 v-on:click="xxx",数组splice(index,1);
+            点击button 删除对应的那个事项
+            绑定时 传入下表
+        5.编辑待办事项 -完成, {editing:item.isEdit},判断是否进入编辑状态
+            获取到当前修改的值
+            保存到 cacheEdit 中
+            双击进入编辑状态 加上类名
+        6.保存修改-完成,只需将编辑状态改为false即可,因为输入的内容编辑框数据是绑定的,故修改后的内容会更新到编辑框中
+            编辑状态下 点击回车即可
+        7.点击esc取消修改-完成,定义一个临时变量cacheEdit,将数据绑定到临时变量中,当双击编辑时去name中取值显示到input输入框中用来编辑,当需要保存时再将这个变量赋值到name中,当需要取消时直接将编辑状态置为false,因为name中没有保存更改后的临时变量,故取消后数据不会显示到input编辑框中
+            编辑状态下 点击esc即可
+            最开始的时候直接双向绑定 取消之后 无法还原的
+            增加一个临时变量 用来保存 临时的操作 知道确认修改时 才保存 否则 直接取消
+            8.重复编辑问题 -完成
+                代码中并没问判断是否有其他的文本框进入编辑
+                为了解决这个问题 每次进入编辑是 把所有的编辑状态全部设置为 false 再修改当前这一个即可
+            9.失去焦点 保存 或者取消-完成
+                问文本框增加 @blur 事件 指向 取消 或者  保存 的逻辑  即可
+            10.清空-完成
+                为清空按钮绑定点击事件
+                清空data中的toDoList = [] 即可完成清空
+            11.计数-完成,filter()的使用,computed:的使用,v-if="countAttr !=0"的绑定的使用
+                使用计算属性 计算未办的事项 返回个数即可
+            12.筛选高亮逻辑-完成, 
+                增加一个标记当前状态的变量
+                因为选项不止有2中 字符串来记录(数字1,2,3)
+                三个a标签绑定点击事件
+                点击修改标示变量的值
+                三个a标签的类名 是需要进行判断
+            13.显示筛选的值
+                计算属性
+                生成li标签是 不是 循环总数组
+                计算属性中的数组
+                逻辑
+                    根据标示状态 进行数组的筛选
+                    返回筛选之后的值
+
+            14,15号逻辑 使用click 触发时 value并没有改变 使用change即可
+            14.全选
+                使用click 触发时 value还没有改变
+                替换为 change事件
+            15.判断是否全部选中
+                click ul 使用冒泡的方式
+                直接把事件绑定给  checkbox 使用 change事件即可
+            16.数据常驻
+                localStorage取值 
+                    有值 赋值
+                    没值 初始值[]
+                
+                浏览器关闭
+                    数据保存到 localStorage中
+*/ -->
+
+</body>
+
+</html>
+<script>
+    let app = new Vue({
+        el: ".todoapp",
+        data: {
+            //新输入的待办事项
+            inputToDo: "",
+            //暂存待办事项
+            cacheEdit: "",
+            //增加一个可见
+            visibility: "全部",
+            //是否全选
+            checkAll:false,
+            //待办事项
+            toDoList
+        },
+        methods: {
+            addToDo() {
+                //console.log(this.inputToDo);
+                //将输入框新增的数据添加到待办事项的数组中
+                if (this.inputToDo.trim()) {
+                    this.toDoList.push({ name: this.inputToDo, complete: false });
+                    this.inputToDo = "";
+                }
+            },
+            //删除对应的项
+            deleteToDo(index) {
+                //console.log(index);
+                this.toDoList.splice(index, 1);
+            },
+            //双击进入编辑选项
+            editToDo(index) {
+                //console.log(index);
+                for (var i = 0; i < this.toDoList.length; i++) {
+                    this.toDoList[i].isEdit = false;
+                }
+                this.toDoList[index].isEdit = true;
+                //取值
+                this.cacheEdit = this.toDoList[index].name;
+            },
+            //保存修改
+            saveEdit(index) {
+                //console.log(index);
+                this.toDoList[index].isEdit = false;
+                //赋值
+                this.toDoList[index].name = this.cacheEdit;
+            },
+            //取消编辑状态
+            cancleEdit(index) {
+                //console.log(index);
+                this.toDoList[index].isEdit = false;
+
+            },
+            //点击清空列表
+            clearList() {
+                //console.log("您点我了");
+                this.toDoList = [];
+            },
+            //根据可见性显示隐藏和高亮
+            changeVisibility(data) {
+                //console.log(data);
+                this.visibility = data;
+            },
+            //点击全选反选按钮
+            checkAllToDo(){
+                //console.log("您点我了");遍历所有元素,将子元素的选中状态改成和他本身一致
+                console.log(this.checkAll);
+                for(var i=0;i<this.toDoList.length;i++){
+                    this.toDoList[i].complete=this.checkAll;
+                }
+            },
+            //判断是否全部选中,将总个数与选中的个数进行比较
+            isCheckedAll(){
+                //方法一:
+                // let numAll = this.toDoList.length;
+                // let numChecked = 0;
+                // for(var i=0;i<this.toDoList.length;i++){
+
+                //  if(this.toDoList[i].complete==true){
+                //     numChecked++
+                //  }
+                // }
+                // this.checkAll= (numAll==numChecked);
+               //方法二:
+               //总个数
+               let numAll = this.toDoList.length;
+               //选中的个数
+               let numChecked=this.toDoList.filter((v,i)=>{
+                   if(v.complete==true) return v;
+               }).length;
+               //赋值给checkAll
+               this.checkAll = numAll==numChecked;
+            }
+        },
+        //计算属性
+        computed: {
+            countAttr: function () {
+                //方法一: es5增加的晒选数组的方法
+                //filter(筛选的对象,对象的标)),它会返回一个满足条件的对象数组,直接点length,即是满足条件的个数.
+                return this.toDoList.filter((v, i) => {
+                    if (v.complete == false) {
+                        return v
+                    }
+                }).length;
+                //方法二:
+                // var num=0;
+                // for(var i=0;i<this.toDoList.length;i++){
+                //     if(this.toDoList[i].complete==false){
+                //         num++
+                //     }  
+                // }
+                // return num;
+            },
+            //根据点击的完成,未完成,已完成按的不通,显示不同的数组
+            visibilityList() {
+                let backArr = [];
+                for (var i = 0; i < this.toDoList.length; i++) {
+                    switch (this.visibility) {
+                        case '全部':
+                         backArr.push(this.toDoList[i])
+                            break;
+                        case '未完成':
+                            if (this.toDoList[i].complete==false) {
+                               backArr.push(this.toDoList[i])
+                            }
+                            break;
+                        case '已完成':
+                            if (this.toDoList[i].complete==true) {
+                               backArr.push(this.toDoList[i])
+                            }
+                            break;
+                    }
+                }
+                return backArr;
+            }
+        }
+    })
+
+</script>
